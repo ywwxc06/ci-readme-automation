@@ -1,9 +1,11 @@
-name: Update README Activity
+name: Auto Update README & Comment on Jira
 
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch: # 支援在 GitHub 介面上手動點擊觸發
+    branches:
+      - main
+      - 'IPSFFFS-*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -11,71 +13,56 @@ permissions:
 jobs:
   update-readme:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Update Activity Section
+      # 1. 更新 README.md
+      - name: Update README file
         run: |
-          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
-          LATEST_COMMIT=$(git log -1 --pretty=format:"%s")
-          NEW_CONTENT="Updated at: $TIMESTAMP | Latest commit: $LATEST_COMMIT"
+          echo -e "\n- Activity updated by GitHub Actions on $(date)" >> README.md
 
-          python3 -c "
-          import os
-          new_content = os.environ['NEW_CONTENT']
-          with open('README.md', 'r') as f:
-              content = f.read()
-          start = '<!-- START_SECTION:activity -->'
-          end = '<!-- END_SECTION:activity -->'
-          if start in content and end in content:
-              before = content.split(start)[0]
-              after = content.split(end)[1]
-              updated = f'{before}{start}\n- {new_content}\n{end}{after}'
-              with open('README.md', 'w') as f:
-                  f.write(updated)
-          "
-        env:
-          NEW_CONTENT: "Updated at: $(date -u +'%Y-%m-%d %H:%M:%S UTC') | Latest commit: $(git log -1 --pretty=format:'%s')"
-
-      - name: Commit and Push Changes
+      # 2. 自動 Commit 與 Push（加入條件判斷避免 Exit Code Error）
+      - name: Commit and Push changes
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
           git add README.md
-          git diff --quiet && git diff --staged --quiet || (git commit -m "docs: auto-update README activity [skip ci]" && git push)
-        env:
-          GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
+          git commit -m "docs: auto-update README activity [skip ci]" || echo "No changes to commit"
+          git push || echo "No changes to push"
 
-      - name: Comment on Jira Issue via API
+      # 3. 呼叫 Jira API 發送自動留言
+      - name: Post Comment to Jira
         if: success()
         env:
           JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
           JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
         run: |
-          ISSUE_KEY="IPSFFFS-18"
-          COMMENT_BODY="[CI/CD Bot] README has been automatically updated and synced. Commit: ${{ github.sha }}"
-          
+          cat << 'EOF' > jira_payload.json
+          {
+            "body": {
+              "type": "doc",
+              "version": 1,
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "[CI/CD Bot] README has been automatically updated and synced via GitHub Actions!",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+          EOF
+
           curl -s --request POST \
-            --url "${JIRA_BASE_URL}/rest/api/3/issue/${ISSUE_KEY}/comment" \
+            --url "${JIRA_BASE_URL}/rest/api/3/issue/IPSFFFS-18/comment" \
             --user "${JIRA_USER_EMAIL}:${JIRA_API_TOKEN}" \
             --header 'Accept: application/json' \
             --header 'Content-Type: application/json' \
-            --data '{
-              "body": {
-                "type": "doc",
-                "version": 1,
-                "content": [
-                  {
-                    "type": "paragraph",
-                    "content": [
-                      {
-                        "text": "'"$COMMENT_BODY"'",
-                        "type": "text"
-                      }
-                    ]
-                  }
-                ]
-              }
-            }'
+            --data @jira_payload.json
