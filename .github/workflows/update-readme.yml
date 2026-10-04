@@ -20,8 +20,10 @@ jobs:
           TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
           LATEST_COMMIT=$(git log -1 --pretty=format:"%s")
           NEW_CONTENT="Updated at: $TIMESTAMP | Latest commit: $LATEST_COMMIT"
-          
+
           python3 -c "
+          import os
+          new_content = os.environ['NEW_CONTENT']
           with open('README.md', 'r') as f:
               content = f.read()
           start = '<!-- START_SECTION:activity -->'
@@ -29,10 +31,12 @@ jobs:
           if start in content and end in content:
               before = content.split(start)[0]
               after = content.split(end)[1]
-              updated = f'{before}{start}\n- {NEW_CONTENT}\n{end}{after}'
+              updated = f'{before}{start}\n- {new_content}\n{end}{after}'
               with open('README.md', 'w') as f:
                   f.write(updated)
           "
+        env:
+          NEW_CONTENT: "Updated at: $(date -u +'%Y-%m-%d %H:%M:%S UTC') | Latest commit: $(git log -1 --pretty=format:'%s')"
 
       - name: Commit and Push Changes
         run: |
