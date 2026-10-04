@@ -62,20 +62,20 @@ jobs:
             --user "${JIRA_USER_EMAIL}:${JIRA_API_TOKEN}" \
             --header 'Accept: application/json' \
             --header 'Content-Type: application/json' \
-            --data "{
-              \"body\": {
-                \"type\": \"doc\",
-                \"version\": 1,
-                \"content\": [
+            --data '{
+              "body": {
+                "type": "doc",
+                "version": 1,
+                "content": [
                   {
-                    \"type\": \"paragraph\",
-                    \"content\": [
+                    "type": "paragraph",
+                    "content": [
                       {
-                        \"text\": \"${COMMENT_BODY}\",
-                        \"type\": \"text\"
+                        "text": "'"$COMMENT_BODY"'",
+                        "type": "text"
                       }
                     ]
                   }
                 ]
               }
-            }"
+            }'
