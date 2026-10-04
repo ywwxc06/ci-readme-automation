@@ -7,7 +7,6 @@
 - Updated at: 2026-10-04 14:34:51 UTC | Latest commit: Update update-readme.yml
 <!-- END_SECTION:activity -->
 
-
 ## Project Information
 - **Jira Issue**: IPSFFFS-18
 - **Course**: Software Engineering / Web3
