@@ -18,51 +18,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 1. 更新 README.md
+      # 1. 自動更新 README.md 內容
       - name: Update README file
         run: |
           echo -e "\n- Activity updated by GitHub Actions on $(date)" >> README.md
 
-      # 2. 自動 Commit 與 Push（加入條件判斷避免 Exit Code Error）
+      # 2. 自動 Commit 與 Push 回 GitHub
       - name: Commit and Push changes
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add README.md
           git commit -m "docs: auto-update README activity [skip ci]" || echo "No changes to commit"
-          git push || echo "No changes to push"
-
-      # 3. 呼叫 Jira API 發送自動留言
-      - name: Post Comment to Jira
-        if: success()
-        env:
-          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
-          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
-          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
-        run: |
-          cat << 'EOF' > jira_payload.json
-          {
-            "body": {
-              "type": "doc",
-              "version": 1,
-              "content": [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "text": "[CI/CD Bot] README has been automatically updated and synced via GitHub Actions!",
-                      "type": "text"
-                    }
-                  ]
-                }
-              ]
-            }
-          }
-          EOF
-
-          curl -s --request POST \
-            --url "${JIRA_BASE_URL}/rest/api/3/issue/IPSFFFS-18/comment" \
-            --user "${JIRA_USER_EMAIL}:${JIRA_API_TOKEN}" \
-            --header 'Accept: application/json' \
-            --header 'Content-Type: application/json' \
-            --data @jira_payload.json
+          git push
