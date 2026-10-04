@@ -1,0 +1,44 @@
+name: Update README Activity
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: # 支援在 GitHub 介面上手動點擊觸發
+
+permissions:
+  contents: write
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Update Activity Section
+        run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          LATEST_COMMIT=$(git log -1 --pretty=format:"%s")
+          NEW_CONTENT="Updated at: $TIMESTAMP | Latest commit: $LATEST_COMMIT"
+          
+          python3 -c "
+          with open('README.md', 'r') as f:
+              content = f.read()
+          start = '<!-- START_SECTION:activity -->'
+          end = '<!-- END_SECTION:activity -->'
+          if start in content and end in content:
+              before = content.split(start)[0]
+              after = content.split(end)[1]
+              updated = f'{before}{start}\n- {NEW_CONTENT}\n{end}{after}'
+              with open('README.md', 'w') as f:
+                  f.write(updated)
+          "
+
+      - name: Commit and Push Changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git diff --quiet && git diff --staged --quiet || (git commit -m "docs: auto-update README activity [skip ci]" && git push)
+        env:
+          GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
